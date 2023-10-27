@@ -1,0 +1,82 @@
+drop database if exists db_ecossistema;
+create database db_ecossistema;
+use db_ecossistema;
+
+create table tb_biomas (
+	bio_id int auto_increment primary key,
+    bio_bioma varchar(45) not null,
+    bio_clima varchar(45) not null,
+    bio_vegetacao varchar(45) not null
+);
+
+create table tb_animais (
+	ani_id int auto_increment primary key,
+    ani_animal varchar(45) not null,
+    ani_nomecientifico varchar(45) not null,
+    ani_expectvida int not null,
+    ani_alimentacao varchar(45) not null,
+    ani_bio_id int not null,
+    foreign key (ani_bio_id) references tb_biomas (bio_id)
+);
+
+-- conta quantos animais cadastrado xite em determinado bioma
+delimiter //
+create function fn_quant_animal(id_bioma int)
+returns varchar(100)
+begin
+	set @quant = (select count(*) from tb_animais join tb_biomas on bio_id = ani_bio_id
+    where id_bioma = bio_id);
+    set @bioma = (select bio_bioma  from tb_biomas
+    where id_bioma = bio_id);
+    set @conc = concat( '                           Bioma: ', @bioma,' || Quantidade de Animais: ',@quant);
+    return @conc;
+end //
+delimiter ;
+
+
+-- verifica qual o bioma q esta sendo cadastrado
+delimiter //
+create trigger tg_verifica_bioma before insert on tb_biomas
+for each row
+begin
+	if not(new.bio_bioma in ('Amazonia','Mata Atlantica','Cerrado','Caatinga', 'Pampa','Pantanal')) then
+    signal sqlstate '45000' set message_text = 'Esse bioma nao existe no brasil';
+    end if;
+end //
+delimiter ;
+
+-- verifica qual a alimentacao do animal
+delimiter //
+create trigger tg_verifica_alimentacao before insert on tb_animais
+for each row
+begin
+	if not(new.ani_alimentacao in ('Herbivoro','Carnivoro','Onivoro')) then
+    signal sqlstate '45000' set message_text = 'Nao existe esse tipo de alimentcao. Existe apenas: Herbivoro,Carnivoro,Onivoro';
+    end if;
+    
+end //
+delimiter ;
+
+-- lista as informacoes do animals desejado
+
+
+delimiter //
+create procedure pc_mostrar (id_animal int)
+begin
+	select ani_animal,ani_nomecientifico,ani_expectvida,ani_alimentacao,bio_bioma from tb_animais
+    join tb_biomas on ani_bio_id = bio_id where ani_id = id_animal;
+end //
+delimiter ;
+
+
+
+insert into tb_biomas (bio_bioma, bio_clima, bio_vegetacao)
+values	('pantanal', 'quente', 'rasteira');
+
+insert into tb_animais
+values	(default, 'cobra','lagartixa',2,'carnivoro',1);
+
+select * from tb_biomas;
+select * from tb_animais;
+call pc_mostrar(1);
+select fn_quant_animal(1) as AnimaisRegistrados;
